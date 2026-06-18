@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset Password — Lifetime Bible</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: -apple-system, system-ui, sans-serif; max-width: 460px; margin: 0 auto; padding: 44px 22px; color: #1a1a1a; background: #faf8f2; line-height: 1.5; }
+  @media (prefers-color-scheme: dark){ body{ color:#e6e6e6; background:#16140f; } input{ background:#22201a; color:#e6e6e6; border-color:#3a382f; } }
+  h1 { font-size: 23px; margin-bottom: 6px; }
+  p.lead { color: #6b6555; margin-top: 0; }
+  input { width: 100%; box-sizing: border-box; padding: 14px; font-size: 16px; border: 1px solid #cfcabd; border-radius: 11px; margin: 10px 0; }
+  button { width: 100%; padding: 15px; font-size: 16px; font-weight: 600; color: #fff; background: #208AEF; border: 0; border-radius: 11px; margin-top: 6px; }
+  button:disabled { opacity: .5; }
+  #msg { margin-top: 16px; font-weight: 600; min-height: 22px; }
+  .ok { color: #1a8a3c; } .err { color: #c0392b; }
+</style>
+</head>
+<body>
+  <h1>Set a new password</h1>
+  <p class="lead">Choose a new password for your Lifetime Bible account.</p>
+  <form id="f">
+    <input type="password" id="pw" placeholder="New password (min 6 characters)" minlength="6" autocomplete="new-password" required>
+    <button id="btn" type="submit">Update password</button>
+  </form>
+  <p id="msg"></p>
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    const supabase = createClient('https://yipfwwvaehvedwlmaqnc.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpcGZ3d3ZhZWh2ZWR3bG1hcW5jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTU1NDIsImV4cCI6MjA5NTYzMTU0Mn0.l0PAIqPaikGdjRn5MVs81B4_AdnUt3f-DrhMc66QG9s');
+    const msg = document.getElementById('msg'), btn = document.getElementById('btn');
+    const set = (t, c) => { msg.textContent = t; msg.className = c || ''; };
+    // Implicit recovery: tokens arrive in the URL fragment.
+    const p = new URLSearchParams(location.hash.slice(1));
+    let ready = false;
+    const at = p.get('access_token'), rt = p.get('refresh_token');
+    if (p.get('error_description')) {
+      set(decodeURIComponent(p.get('error_description').replace(/\+/g,' ')) + ' Please request a new reset email from the app.', 'err');
+    } else if (at && rt) {
+      supabase.auth.setSession({ access_token: at, refresh_token: rt })
+        .then(({ error }) => { ready = !error; if (error) set('This link has expired. Request a new reset email from the app.', 'err'); });
+    } else {
+      set('Open this page from the password-reset link in your email.', 'err');
+    }
+    document.getElementById('f').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!ready) { set('This link is invalid or expired. Request a new reset email from the app.', 'err'); return; }
+      btn.disabled = true; set('Updating…');
+      const { error } = await supabase.auth.updateUser({ password: document.getElementById('pw').value });
+      btn.disabled = false;
+      if (error) set('Error: ' + error.message, 'err');
+      else set('✓ Password updated. Open Lifetime Bible and sign in with your new password.', 'ok');
+    });
+  </script>
+</body>
+</html>
